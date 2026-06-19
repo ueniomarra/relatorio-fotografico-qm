@@ -146,11 +146,14 @@ function buildHome(){
   }else{
     lista=SECOES.map(function(s){
       var m=modById(s.modId);
-      return '<div class="card" style="display:flex;align-items:center;gap:12px;cursor:pointer" onclick="abrirSecao(\''+s.id+'\')">'+
-        '<div class="mod-ico" style="background:'+m.cor+'18;border:2px solid '+m.cor+'22;width:44px;height:44px;font-size:20px">'+m.icon+'</div>'+
-        '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+esc(s.titulo||m.label)+'</div>'+
-        '<div style="font-size:11px;color:#6B7280;margin-top:2px">'+esc(s.cidade||'Sem cidade')+' · '+(s.fotos?s.fotos.length:0)+' foto(s)</div></div>'+
-        '<div class="chev">›</div></div>';
+      var nf=s.fotos?s.fotos.length:0;
+      return '<div class="card" style="display:flex;align-items:center;gap:10px">'+
+        '<div onclick="abrirSecao(\''+s.id+'\')" style="display:flex;align-items:center;gap:12px;flex:1;cursor:pointer;min-width:0">'+
+        '<div class="mod-ico" style="background:'+m.cor+'18;border:2px solid '+m.cor+'22;width:44px;height:44px;font-size:20px;flex-shrink:0">'+m.icon+'</div>'+
+        '<div style="min-width:0"><div style="font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.titulo||m.label)+'</div>'+
+        '<div style="font-size:11px;color:#6B7280;margin-top:2px">'+esc(s.cidade||'Sem cidade')+' · '+nf+' foto(s)</div></div></div>'+
+        (nf?'<button onclick="gerarWord(\''+s.id+'\')" style="background:#C9A961;color:#0A2342;border:none;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0">📤 Enviar</button>':'<span style="font-size:10px;color:#9CA3AF;flex-shrink:0">sem foto</span>')+
+        '</div>';
     }).join('');
   }
 
@@ -167,9 +170,9 @@ function buildHome(){
     '<div style="padding:0 16px"><div style="display:flex;gap:10px">'+cidsHTML+'</div>'+
     '<button onclick="abrirCidades()" style="background:none;border:none;color:#13315C;font-size:11px;font-weight:700;margin-top:8px;cursor:pointer;text-decoration:underline">gerenciar cidades e logos</button></div>'+
     '<div class="sec-lbl">2. ESCOLHA O MÓDULO E FOTOGRAFE</div>'+mods+
-    '<div class="sec-lbl">ÁREAS CRIADAS ('+SECOES.length+' · '+totFotos+' fotos)</div>'+lista+
+    '<div class="sec-lbl">RELATÓRIOS SALVOS ('+SECOES.length+' · '+totFotos+' fotos)</div>'+lista+
     '<div style="padding:16px">'+
-      (SECOES.length?'<button class="btn btn-gold" onclick="gerarWord()">📤 Gerar e enviar Relatório (Word)</button>':'')+
+      (SECOES.length>1?'<button class="btn-line" onclick="gerarWord()">📦 Ou gerar todos num arquivo só</button>':'')+
       '<div style="font-size:10px;color:#9CA3AF;text-align:center;margin-top:12px;line-height:1.6">As fotos ficam salvas no aparelho. Instale na tela inicial para não perder. Exporte o Word ao terminar.</div>'+
     '</div></div>';
 }
@@ -254,7 +257,8 @@ function buildSecao(){
       (fotos?'<div class="foto-grid">'+fotos+'</div>':'<div class="empty">Sem fotos ainda. Toque em <b>Tirar foto</b>.</div>')+
     '</div>'+
     '<div style="padding:16px">'+
-      '<button class="btn btn-gold" onclick="gerarWord(\''+s.id+'\')">📤 Gerar e enviar (só esta área)</button>'+
+      '<button class="btn" onclick="salvarRelatorio()">💾 Salvar relatório</button>'+
+      '<button class="btn-line" style="margin-top:10px" onclick="gerarWord(\''+s.id+'\')">📤 Gerar e enviar agora</button>'+
     '</div></div>';
 }
 
@@ -282,6 +286,7 @@ function abrirSecao(id){
   });
 }
 function voltarHome(){G.tela='home';G.sa=null;render()}
+function salvarRelatorio(){saveSecoes();toast('Relatório salvo. Veja em Relatórios salvos.');voltarHome()}
 function setCampo(k,v){var s=secById(G.sa);if(!s)return;s[k]=v;saveSecoes()}
 function setLegenda(fid,v){var s=secById(G.sa);if(!s)return;for(var i=0;i<s.fotos.length;i++){if(s.fotos[i].id===fid){s.fotos[i].legenda=v;break}}saveSecoes()}
 function removerFoto(fid){
