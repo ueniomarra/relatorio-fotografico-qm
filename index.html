@@ -169,7 +169,7 @@ function buildHome(){
     '<div class="sec-lbl">2. ESCOLHA O MÓDULO E FOTOGRAFE</div>'+mods+
     '<div class="sec-lbl">ÁREAS CRIADAS ('+SECOES.length+' · '+totFotos+' fotos)</div>'+lista+
     '<div style="padding:16px">'+
-      (SECOES.length?'<button class="btn btn-gold" onclick="gerarWord()">⬇ Gerar Relatório completo em Word</button>':'')+
+      (SECOES.length?'<button class="btn btn-gold" onclick="gerarWord()">📤 Gerar e enviar Relatório (Word)</button>':'')+
       '<div style="font-size:10px;color:#9CA3AF;text-align:center;margin-top:12px;line-height:1.6">As fotos ficam salvas no aparelho. Instale na tela inicial para não perder. Exporte o Word ao terminar.</div>'+
     '</div></div>';
 }
@@ -254,7 +254,7 @@ function buildSecao(){
       (fotos?'<div class="foto-grid">'+fotos+'</div>':'<div class="empty">Sem fotos ainda. Toque em <b>Tirar foto</b>.</div>')+
     '</div>'+
     '<div style="padding:16px">'+
-      '<button class="btn btn-gold" onclick="gerarWord(\''+s.id+'\')">⬇ Gerar Word só desta área</button>'+
+      '<button class="btn btn-gold" onclick="gerarWord(\''+s.id+'\')">📤 Gerar e enviar (só esta área)</button>'+
     '</div></div>';
 }
 
@@ -460,6 +460,17 @@ function tabelaIdent(linhas){
     '<w:tblGrid><w:gridCol w:w="3200"/><w:gridCol w:w="6160"/></w:tblGrid>'+trs+'</w:tbl>';
 }
 
+function baixarBlob(blob,nome){var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=nome;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a)},1500);toast('Word gerado. Veja na pasta Downloads / Arquivos.')}
+function exportarBlob(blob,nome){
+  try{
+    var file=new File([blob],nome,{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:nome,text:'Relatório fotográfico'}).then(function(){toast('Pronto. Escolha onde enviar (WhatsApp, e-mail...).')}).catch(function(err){if(String(err).indexOf('Abort')<0)baixarBlob(blob,nome)});
+      return;
+    }
+  }catch(e){}
+  baixarBlob(blob,nome);
+}
 function gerarWord(secaoId){
   var alvo = secaoId ? SECOES.filter(function(s){return s.id===secaoId}) : SECOES.slice();
   alvo = alvo.filter(function(s){return s.fotos && s.fotos.length});
@@ -586,12 +597,8 @@ function gerarWord(secaoId){
     media.forEach(function(m){files.push(m)});
 
     var blob=zipStore(files);
-    var url=URL.createObjectURL(blob);
-    var a=document.createElement('a');
-    a.href=url; a.download='Relatorio_Fotografico_'+cidade.replace(/[^a-zA-Z0-9]/g,'_')+'_'+(alvo[0].data||hoje())+'.docx';
-    document.body.appendChild(a); a.click();
-    setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a)},1500);
-    toast(cidObj&&cidObj.logo?'Word gerado com a logo da cidade.':'Word gerado. Cadastre a logo da cidade para sair automática.');
+    var nome='Relatorio_Fotografico_'+cidade.replace(/[^a-zA-Z0-9]/g,'_')+'_'+(alvo[0].data||hoje())+'.docx';
+    exportarBlob(blob,nome);
   });
 }
 
