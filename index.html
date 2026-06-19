@@ -144,15 +144,29 @@ function buildHome(){
   if(SECOES.length===0){
     lista='<div class="empty">Nenhuma área criada ainda.<br/>Escolha um módulo acima para começar.</div>';
   }else{
-    lista=SECOES.map(function(s){
-      var m=modById(s.modId);
-      var nf=s.fotos?s.fotos.length:0;
-      return '<div class="card" style="display:flex;align-items:center;gap:10px">'+
-        '<div onclick="abrirSecao(\''+s.id+'\')" style="display:flex;align-items:center;gap:12px;flex:1;cursor:pointer;min-width:0">'+
-        '<div class="mod-ico" style="background:'+m.cor+'18;border:2px solid '+m.cor+'22;width:44px;height:44px;font-size:20px;flex-shrink:0">'+m.icon+'</div>'+
-        '<div style="min-width:0"><div style="font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.titulo||m.label)+'</div>'+
-        '<div style="font-size:11px;color:#6B7280;margin-top:2px">'+esc(s.cidade||'Sem cidade')+' · '+nf+' foto(s)</div></div></div>'+
-        (nf?'<button onclick="gerarWord(\''+s.id+'\')" style="background:#C9A961;color:#0A2342;border:none;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0">📤 Enviar</button>':'<span style="font-size:10px;color:#9CA3AF;flex-shrink:0">sem foto</span>')+
+    var grupos={};
+    SECOES.forEach(function(s){var k=visitaKey(s);if(!grupos[k])grupos[k]={cidade:s.cidade,data:s.data,itens:[]};grupos[k].itens.push(s)});
+    var chaves=Object.keys(grupos).sort(function(a,b){return (grupos[b].data||'').localeCompare(grupos[a].data||'')});
+    lista=chaves.map(function(k){
+      var g=grupos[k];
+      var nf=g.itens.reduce(function(a,s){return a+(s.fotos?s.fotos.length:0)},0);
+      var itensHTML=g.itens.map(function(s){
+        var m=modById(s.modId);var n=s.fotos?s.fotos.length:0;
+        return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #F1F4F8">'+
+          '<div onclick="abrirSecao(\''+s.id+'\')" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;min-width:0">'+
+          '<div class="mod-ico" style="background:'+m.cor+'18;border:1px solid '+m.cor+'22;width:36px;height:36px;font-size:17px;flex-shrink:0">'+m.icon+'</div>'+
+          '<div style="min-width:0"><div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.titulo||m.label)+'</div>'+
+          '<div style="font-size:10px;color:#6B7280">'+n+' foto(s)</div></div></div>'+
+          (n?'<button onclick="gerarWord(\''+s.id+'\')" style="background:#EEF2F7;color:#0A2342;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer;flex-shrink:0">📤 Enviar</button>':'')+
+          '</div>';
+      }).join('');
+      return '<div class="card">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'+
+        '<div><div style="font-size:15px;font-weight:900;color:#0A2342">'+esc(g.cidade||'Cidade')+'</div>'+
+        '<div style="font-size:11px;color:#6B7280;margin-top:1px">Visita de '+dataBR(g.data)+' · '+g.itens.length+' relatório(s) · '+nf+' fotos</div></div>'+
+        '<button onclick="excluirVisita(\''+k+'\')" style="background:none;border:none;color:#B71C1C;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑 excluir</button>'+
+        '</div>'+itensHTML+
+        '<button class="btn btn-gold" style="margin-top:12px" onclick="enviarVisita(\''+k+'\')">📤 Enviar todos desta visita</button>'+
         '</div>';
     }).join('');
   }
@@ -172,8 +186,7 @@ function buildHome(){
     '<div class="sec-lbl">2. ESCOLHA O MÓDULO E FOTOGRAFE</div>'+mods+
     '<div class="sec-lbl">RELATÓRIOS SALVOS ('+SECOES.length+' · '+totFotos+' fotos)</div>'+lista+
     '<div style="padding:16px">'+
-      (SECOES.length>1?'<button class="btn-line" onclick="gerarWord()">📦 Ou gerar todos num arquivo só</button>':'')+
-      '<div style="font-size:10px;color:#9CA3AF;text-align:center;margin-top:12px;line-height:1.6">As fotos ficam salvas no aparelho. Instale na tela inicial para não perder. Exporte o Word ao terminar.</div>'+
+      '<div style="font-size:10px;color:#9CA3AF;text-align:center;margin-top:4px;line-height:1.6">As fotos ficam salvas no aparelho. Instale na tela inicial para não perder. Cada visita fica guardada aqui até você excluir.</div>'+
     '</div></div>';
 }
 
@@ -476,11 +489,9 @@ function exportarBlob(blob,nome){
   }catch(e){}
   baixarBlob(blob,nome);
 }
-function gerarWord(secaoId){
-  var alvo = secaoId ? SECOES.filter(function(s){return s.id===secaoId}) : SECOES.slice();
-  alvo = alvo.filter(function(s){return s.fotos && s.fotos.length});
-  if(!alvo.length){toast('Adicione fotos antes de gerar.');return}
-  toast('Montando o Word...');
+function visitaKey(s){return (s.cidadeId||s.cidade||'?')+'|'+(s.data||'?')}
+function montarDocx(alvo){
+ return new Promise(function(resolve){
   var faltam=[];
   alvo.forEach(function(s){s.fotos.forEach(function(f){if(!G.imgs[f.id])faltam.push(f.id)})});
   var cidObj = cidById(alvo[0].cidadeId) || cidAtiva();
@@ -603,8 +614,39 @@ function gerarWord(secaoId){
 
     var blob=zipStore(files);
     var nome='Relatorio_Fotografico_'+cidade.replace(/[^a-zA-Z0-9]/g,'_')+'_'+(alvo[0].data||hoje())+'.docx';
-    exportarBlob(blob,nome);
+    resolve({blob:blob,nome:nome});
   });
+ });
+}
+function gerarWord(secaoId){
+  var alvo = secaoId ? SECOES.filter(function(s){return s.id===secaoId}) : SECOES.slice();
+  alvo = alvo.filter(function(s){return s.fotos && s.fotos.length});
+  if(!alvo.length){toast('Adicione fotos antes de gerar.');return}
+  toast('Montando o Word...');
+  montarDocx(alvo).then(function(r){exportarBlob(r.blob,r.nome)});
+}
+function exportarVarios(itens){
+  try{
+    var files=itens.map(function(it){return new File([it.blob],it.nome,{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})});
+    if(navigator.canShare&&navigator.canShare({files:files})){
+      navigator.share({files:files,title:'Relatórios fotográficos'}).then(function(){toast('Pronto. Escolha onde enviar (WhatsApp, e-mail...).')}).catch(function(err){if(String(err).indexOf('Abort')<0)itens.forEach(function(it){baixarBlob(it.blob,it.nome)})});
+      return;
+    }
+  }catch(e){}
+  itens.forEach(function(it){baixarBlob(it.blob,it.nome)});
+}
+function enviarVisita(chave){
+  var itens=SECOES.filter(function(s){return visitaKey(s)===chave && s.fotos && s.fotos.length});
+  if(!itens.length){toast('Sem relatórios com foto nesta visita.');return}
+  toast('Montando '+itens.length+' relatório(s)...');
+  Promise.all(itens.map(function(s){return montarDocx([s])})).then(function(rs){exportarVarios(rs)});
+}
+function excluirVisita(chave){
+  var itens=SECOES.filter(function(s){return visitaKey(s)===chave});
+  if(!confirm('Excluir esta visita inteira ('+itens.length+' relatorio(s))? Nao da para desfazer.'))return;
+  itens.forEach(function(s){(s.fotos||[]).forEach(function(f){idbDel(f.id);delete G.imgs[f.id]})});
+  SECOES=SECOES.filter(function(s){return visitaKey(s)!==chave});
+  saveSecoes();render();toast('Visita excluida.');
 }
 
 // ════════════════════════════════════════════
