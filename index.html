@@ -89,11 +89,11 @@ var G={tela:'home', sa:null, imgs:{}};
 var SECOES=[];
 var CIDADES=[];
 var ATIVA=null;
-var CFG={objeto:'',numero:'',responsavel:'',registro:''};
+var CFG={objeto:'',numero:'',responsavel:'',registro:'',responsaveis:[]};
 
 function lsGet(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
-function loadAll(){SECOES=lsGet('qm_rf_secoes',[]);CFG=lsGet('qm_rf_cfg',CFG);CIDADES=lsGet('qm_rf_cidades',null);if(!CIDADES||!CIDADES.length){CIDADES=JSON.parse(JSON.stringify(CIDADES_PADRAO));lsSet('qm_rf_cidades',CIDADES)}ATIVA=lsGet('qm_rf_ativa',null)}
+function loadAll(){SECOES=lsGet('qm_rf_secoes',[]);CFG=lsGet('qm_rf_cfg',CFG);if(!CFG.responsaveis)CFG.responsaveis=[];if(!CFG.responsaveis.length&&(CFG.responsavel||CFG.registro))CFG.responsaveis=[{nome:CFG.responsavel||'',registro:CFG.registro||''}];CIDADES=lsGet('qm_rf_cidades',null);if(!CIDADES||!CIDADES.length){CIDADES=JSON.parse(JSON.stringify(CIDADES_PADRAO));lsSet('qm_rf_cidades',CIDADES)}ATIVA=lsGet('qm_rf_ativa',null)}
 function saveSecoes(){lsSet('qm_rf_secoes',SECOES)}
 function saveCfg(){lsSet('qm_rf_cfg',CFG)}
 function saveCidades(){lsSet('qm_rf_cidades',CIDADES);lsSet('qm_rf_ativa',ATIVA)}
@@ -221,8 +221,7 @@ function buildConfig(){
     '<div class="card" style="margin-top:16px">'+
       '<div class="fld"><label class="lbl">Objeto / finalidade</label><input class="inp" value="'+esc(CFG.objeto)+'" placeholder="Ex: Monitoramento da gestão de resíduos sólidos" oninput="CFG.objeto=this.value;saveCfg()"/></div>'+
       '<div class="fld"><label class="lbl">Nº do relatório</label><input class="inp" value="'+esc(CFG.numero)+'" placeholder="Ex: 05/2026" oninput="CFG.numero=this.value;saveCfg()"/></div>'+
-      '<div class="fld"><label class="lbl">Responsável técnico</label><input class="inp" value="'+esc(CFG.responsavel)+'" placeholder="Nome do responsável" oninput="CFG.responsavel=this.value;saveCfg()"/></div>'+
-      '<div class="fld"><label class="lbl">Registro profissional (CREA / CAU / outro)</label><input class="inp" value="'+esc(CFG.registro)+'" placeholder="Ex: CREA-GO 00000/D" oninput="CFG.registro=this.value;saveCfg()"/></div>'+
+      '<div class="fld"><label class="lbl">Responsáveis técnicos (nome + registro)</label>'+(CFG.responsaveis||[]).map(function(r,i){return '<div style="display:flex;gap:6px;margin-bottom:6px"><input class="inp" style="flex:2" value="'+esc(r.nome)+'" placeholder="Nome do responsável" oninput="setResp('+i+',\'nome\',this.value)"/><input class="inp" style="flex:1" value="'+esc(r.registro)+'" placeholder="CREA-GO 0000/D" oninput="setResp('+i+',\'registro\',this.value)"/><button onclick="removeResp('+i+')" style="background:#FBE9E7;color:#B71C1C;border:none;border-radius:8px;padding:0 13px;font-weight:800;cursor:pointer">×</button></div>'}).join('')+'<button class="btn-line" style="padding:10px;margin-top:2px" onclick="addResp()">+ Adicionar responsável técnico</button></div>'+
     '</div>'+
     '<div style="padding:0 16px"><button class="btn" onclick="voltarHome()">Salvar e voltar</button></div></div>';
 }
@@ -280,6 +279,9 @@ function buildSecao(){
 // NAVEGAÇÃO / EDIÇÃO
 // ════════════════════════════════════════════
 function abrirConfig(){G.tela='config';render()}
+function addResp(){if(!CFG.responsaveis)CFG.responsaveis=[];CFG.responsaveis.push({nome:'',registro:''});saveCfg();render()}
+function setResp(i,k,v){if(CFG.responsaveis&&CFG.responsaveis[i]){CFG.responsaveis[i][k]=v;saveCfg()}}
+function removeResp(i){if(CFG.responsaveis){CFG.responsaveis.splice(i,1);saveCfg();render()}}
 function abrirCidades(){G.tela='cidades';render()}
 function addCidade(){CIDADES.push({id:uid(),nome:'',logo:''});if(!ATIVA)ATIVA=CIDADES[CIDADES.length-1].id;saveCidades();render()}
 function setNomeCidade(id,v){var c=cidById(id);if(c){c.nome=v;saveCidades()}}
@@ -550,7 +552,7 @@ function montarDocx(alvo){
     capa+=paraTexto(CFG.objeto||'Gestão e Monitoramento de Resíduos Sólidos',{jc:'center',sz:19,color:'555555',after:360});
     capa+=paraTexto('RELATÓRIO DE REGISTRO',{jc:'center',b:true,sz:40,color:'0A2342',after:0});
     capa+=paraTexto('FOTOGRÁFICO GEORREFERENCIADO',{jc:'center',b:true,sz:40,color:'0A2342',after:360});
-    var ident=[['Município',cidade],['Objeto',CFG.objeto||'Monitoramento técnico de resíduos sólidos'],['Data da vistoria',data],['Nº do relatório',CFG.numero||''],['Responsável técnico',CFG.responsavel||''],['Registro profissional',CFG.registro||''],['Total de registros fotográficos',String(totFotos)]].filter(function(r){return r[1]});
+    var ident=[['Município',cidade],['Objeto',CFG.objeto||'Monitoramento técnico de resíduos sólidos'],['Data da vistoria',data],['Nº do relatório',CFG.numero||''],['Responsável(is) técnico(s)',(CFG.responsaveis||[]).filter(function(r){return r.nome}).map(function(r){return r.nome+(r.registro?(' ('+r.registro+')'):'')}).join('; ')||CFG.responsavel||''],['Total de registros fotográficos',String(totFotos)]].filter(function(r){return r[1]});
     capa+=tabelaIdent(ident);
     capa+=paraTexto(cidade.split(',')[0]+', '+data+'.',{jc:'center',sz:19,color:'555555',before:420});
     capa+=quebraPagina();
@@ -590,6 +592,15 @@ function montarDocx(alvo){
       body+=paraTexto('',{after:40});
     });
 
+    var _resps=(CFG.responsaveis||[]).filter(function(r){return r.nome});
+    if(_resps.length){
+      body+=paraTexto('RESPONSÁVEL(IS) TÉCNICO(S)',{b:true,sz:22,color:'0A2342',before:320,after:160});
+      _resps.forEach(function(r){
+        body+=paraTexto('__________________________________________',{jc:'center',before:260,after:0});
+        body+=paraTexto(r.nome,{jc:'center',b:true,sz:21,color:'0A2342',after:0});
+        if(r.registro)body+=paraTexto(r.registro,{jc:'center',sz:18,color:'555555',after:0});
+      });
+    }
     var nrTxt=CFG.numero?(' · Nº '+CFG.numero):'';
     var hdr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
       '<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
@@ -598,7 +609,8 @@ function montarDocx(alvo){
       '<w:r><w:tab/></w:r>'+
       '<w:r><w:rPr><w:sz w:val="15"/><w:color w:val="666666"/></w:rPr><w:t xml:space="preserve">Relatório Fotográfico Georreferenciado'+esc(nrTxt)+'</w:t></w:r></w:p></w:hdr>';
 
-    var rodEsq='Documento técnico'+(CFG.responsavel?(' · Resp.: '+CFG.responsavel):'');
+    var _r0=(((CFG.responsaveis||[]).filter(function(r){return r.nome})[0])||{}).nome||CFG.responsavel||'';
+    var rodEsq='Documento técnico'+(_r0?(' · Resp.: '+_r0):'');
     var ftr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
       '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
       '<w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="4" w:space="3" w:color="C9CCD4"/></w:pBdr><w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs><w:spacing w:before="0" w:after="0"/></w:pPr>'+
