@@ -289,10 +289,10 @@ function novaSecao(modId){
   var m=modById(modId), ca=cidAtiva();
   var s={id:uid(),modId:modId,titulo:'',cidade:ca?ca.nome:'',cidadeId:ATIVA||null,data:hoje(),descricao:m.desc,fotos:[]};
   SECOES.push(s);saveSecoes();
-  G.sa=s.id;G.imgs={};G.tela='secao';render();
+  G.sa=s.id;G.imgs={};G.tela='secao';aquecerGPS();render();
 }
 function abrirSecao(id){
-  G.sa=id;G.tela='secao';G.imgs={};render();
+  G.sa=id;G.tela='secao';G.imgs={};aquecerGPS();render();
   var s=secById(id);if(!s)return;
   (s.fotos||[]).forEach(function(f){
     idbGet(f.id).then(function(v){if(v){G.imgs[f.id]=v;if(G.tela==='secao'&&G.sa===id)render()}});
@@ -344,12 +344,27 @@ function onFiles(files,carimbo){
   }
   toast('Processando '+arr.length+' foto(s)...');
 }
-function pegarGPS(cb){
-  if(!navigator.geolocation){cb(null,null);return}
+var GPS={lat:null,lng:null,ts:0};
+function aquecerGPS(){
+  if(!navigator.geolocation)return;
   navigator.geolocation.getCurrentPosition(
-    function(p){cb(p.coords.latitude,p.coords.longitude)},
-    function(){cb(null,null)},
-    {enableHighAccuracy:true,timeout:9000,maximumAge:10000}
+    function(p){GPS={lat:p.coords.latitude,lng:p.coords.longitude,ts:Date.now()}},
+    function(){},
+    {enableHighAccuracy:true,timeout:25000,maximumAge:30000}
+  );
+}
+function pegarGPS(cb){
+  if(GPS.lat!=null && (Date.now()-GPS.ts)<90000){cb(GPS.lat,GPS.lng);return}
+  if(!navigator.geolocation){toast('Este aparelho nao tem GPS.');cb(null,null);return}
+  toast('Pegando o GPS, aguarde...');
+  navigator.geolocation.getCurrentPosition(
+    function(p){GPS={lat:p.coords.latitude,lng:p.coords.longitude,ts:Date.now()};cb(p.coords.latitude,p.coords.longitude)},
+    function(err){
+      if(GPS.lat!=null){cb(GPS.lat,GPS.lng);return}
+      toast((err&&err.code===1)?'Permita a Localizacao para o app e ligue o GPS do celular.':'GPS demorou. Ligue a Localizacao e tente de novo.');
+      cb(null,null);
+    },
+    {enableHighAccuracy:true,timeout:25000,maximumAge:60000}
   );
 }
 function processarFoto(file,lat,lng,carimbo){
@@ -659,8 +674,7 @@ function excluirVisita(chave){
 })();
 function registerSW(){
   if(!('serviceWorker' in navigator))return;
-  var sw="var C='qm-rf-v1';self.addEventListener('install',function(e){self.skipWaiting()});self.addEventListener('activate',function(e){self.clients.claim()});self.addEventListener('fetch',function(e){e.respondWith(fetch(e.request).then(function(r){var cp=r.clone();caches.open(C).then(function(c){try{c.put(e.request,cp)}catch(x){}});return r}).catch(function(){return caches.match(e.request)}))});";
-  try{var b=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(b)).catch(function(){})}catch(e){}
+  try{navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}
 }
 
 // ════════════════════════════════════════════
